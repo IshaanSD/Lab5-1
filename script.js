@@ -1,15 +1,143 @@
 // script.js
 
 const img = new Image(); // used to load image from <input> and draw to canvas
+const canvas = document.getElementById("user-image");
+const ctx = canvas.getContext("2d");
+const reset = document.querySelector('[type="reset"]');
+const readText = document.querySelector('[type="button"]');
+const submit = document.querySelector('[type="submit"]');
+
+const voiceSelect = document.querySelector("#voice-selection");
+var synth = window.speechSynthesis;
+var voices = synth.getVoices();
+const volumeLevel = document.querySelector("input[type=range]");
+const volumeIcon = document.querySelector("#volume-group img");
+
+// console.log("at start ",synth.getVoices())
+
+function populateVoiceList() {
+  voiceSelect.disabled = false;
+  voiceSelect.remove(0);
+
+  // console.log(voices[0]);
+
+  voices = synth.getVoices();
+  // console.log(voices[0]);
+  for (var i = 0; i < voices.length; i++) {
+    var option = document.createElement("option");
+    option.textContent = voices[i].name + " (" + voices[i].lang + ")";
+
+    if (voices[i].default) {
+      option.textContent += " -- DEFAULT";
+    }
+
+    option.setAttribute("data-lang", voices[i].lang);
+    option.setAttribute("data-name", voices[i].name);
+
+    voiceSelect.appendChild(option);
+  }
+}
+synth.addEventListener("voiceschanged", () => {
+  voices = synth.getVoices();
+  // console.log('voice changes', voices);
+  populateVoiceList();
+});
+voices = synth.getVoices();
+populateVoiceList();
+// console.log("at start 2",voices);
 
 // Fires whenever the img object loads a new image (such as with img.src =)
-img.addEventListener('load', () => {
+img.addEventListener("load", () => {
   // TODO
+
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const dims = getDimmensions(
+    canvas.width,
+    canvas.height,
+    img.width,
+    img.height
+  );
+
+  ctx.drawImage(img, dims.startX, dims.startY, dims.width, dims.height);
+
+  submit.disabled = false;
 
   // Some helpful tips:
   // - Fill the whole Canvas with black first to add borders on non-square images, then draw on top
   // - Clear the form when a new image is selected
   // - If you draw the image to canvas here, it will update as soon as a new image is selected
+});
+const uploadImage = document.getElementById("image-input");
+uploadImage.addEventListener("change", function () {
+  img.src = URL.createObjectURL(uploadImage.files[0]);
+  img.alt = uploadImage.files[0];
+});
+
+submit.addEventListener("click", () => {
+  const topText = document.getElementById("text-top");
+
+  const bottomText = document.getElementById("text-bottom");
+  ctx.font = "bold 35px Arial Rounded MT Bold";
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 5;
+  ctx.fillStyle = "white";
+  ctx.textAlign = "center";
+
+  ctx.strokeText(topText.value, canvas.width / 2, 35);
+  ctx.fillText(topText.value, canvas.width / 2, 35);
+  ctx.strokeText(bottomText.value, canvas.width / 2, canvas.height - 8);
+  ctx.fillText(bottomText.value, canvas.width / 2, canvas.height - 8);
+
+  submit.disabled = true;
+  reset.disabled = false;
+  readText.disabled = false;
+  populateVoiceList();
+});
+
+reset.addEventListener("click", () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  submit.disabled = false;
+  reset.disabled = true;
+  readText.disabled = true;
+});
+
+readText.addEventListener("click", () => {
+  const utterance = new SpeechSynthesisUtterance(
+    document.getElementById("text-top").value +
+      document.getElementById("text-bottom").value
+  );
+  const selectedOption = voiceSelect.selectedOptions[0].getAttribute(
+    "data-name"
+  );
+  for (var i = 0; i < voices.length; i++) {
+    if (voices[i].name === selectedOption) {
+      utterance.voice = voices[i];
+    }
+  }
+  utterance.volume = volumeLevel.value / 100;
+  console.log("tried to speak");
+
+  synth.cancel();
+  synth.speak(utterance);
+  console.log(utterance.voice, utterance.volume);
+});
+
+volumeLevel.addEventListener("change", () => {
+  var vol;
+  if (volumeLevel.value >= 67) {
+    vol = 3;
+  } else if (volumeLevel.value >= 34) {
+    vol = 2;
+  } else if (volumeLevel.value > 1) {
+    vol = 1;
+  } else {
+    vol = 0;
+  }
+  volumeIcon.src = `icons/volume-level-${vol}.svg`;
+
+  console.log("vol changed to ", volumeLevel.value);
 });
 
 /**
@@ -49,5 +177,5 @@ function getDimmensions(canvasWidth, canvasHeight, imageWidth, imageHeight) {
     startY = (canvasHeight - height) / 2;
   }
 
-  return { 'width': width, 'height': height, 'startX': startX, 'startY': startY }
+  return { width: width, height: height, startX: startX, startY: startY };
 }
